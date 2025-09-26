@@ -1,60 +1,27 @@
-import React, { useEffect, useState } from "react";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { getFirestore, collection, getDocs } from "firebase/firestore";
-import app from "./firebaseConfig";
+import React from "react";
+import { Link } from "react-router-dom";
+import { getAuth, signOut } from "firebase/auth";
 
-const auth = getAuth(app);
-const db = getFirestore(app);
+
 
 function Home() {
-  const [user, setUser] = useState(null);
-  const [encuestas, setEncuestas] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  const [firebaseStatus, setFirebaseStatus] = useState('');
-  useEffect(() => {
-    if (user) {
-      const fetchEncuestas = async () => {
-        try {
-          const querySnapshot = await getDocs(collection(db, "encuestas"));
-          setEncuestas(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-          setFirebaseStatus('Conectado correctamente a Firebase');
-        } catch (e) {
-          setFirebaseStatus('Error de conexión con Firebase');
-        }
-      };
-      fetchEncuestas();
-    }
-  }, [user]);
-
-  if (loading) return <div>Cargando...</div>;
-  if (!user) return <div>No has iniciado sesión.</div>;
-
   return (
-    <div style={{ maxWidth: 600, margin: "auto", padding: 20 }}>
-      <h2>Encuestas</h2>
-      {firebaseStatus && (
-        <div style={{ color: firebaseStatus.includes('Error') ? 'red' : 'green', marginBottom: 10 }}>
-          {firebaseStatus}
-        </div>
-      )}
-      {encuestas.length === 0 ? (
-        <p>No hay encuestas disponibles.</p>
-      ) : (
-        <ul>
-          {encuestas.map((encuesta) => (
-            <li key={encuesta.id}>{encuesta.titulo || encuesta.id}</li>
-          ))}
-        </ul>
-      )}
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f0f4fa' }}>
+      {/* Menú lateral */}
+      <nav style={{ width: 240, background: '#212529', color: 'white', padding: '32px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', minHeight: '100vh', boxShadow: '2px 0 8px #1976d220' }}>
+        <h2 style={{ fontSize: 22, marginBottom: 32, fontWeight: 700 }}>Menú</h2>
+        <Link to="/consultar" style={{ color: 'white', textDecoration: 'none', fontWeight: 500, fontSize: 18, marginBottom: 16, padding: '8px 16px', borderRadius: 6, background: '#212529' }}>Consultar Encuesta</Link>
+        <button
+          onClick={() => { signOut(getAuth()); window.location.reload(); }}
+          style={{ marginTop: 32, background: '#fff', color: '#212529', border: 'none', borderRadius: 6, padding: '10px 20px', fontWeight: 600, fontSize: 16, cursor: 'pointer', boxShadow: '0 1px 4px #1976d220' }}
+        >
+          Cerrar sesión
+        </button>
+      </nav>
+      {/* Contenido principal */}
+      <div style={{ flex: 1, maxWidth: 900, margin: "auto", padding: 32 }}>
+        <h2>Bienvenido</h2>
+      </div>
     </div>
   );
 }
