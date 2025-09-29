@@ -11,6 +11,15 @@ function ConsultarEncuesta() {
   const [loading, setLoading] = useState(true);
   const db = getFirestore(app);
 
+  // Evita renderizar objetos no válidos como hijos de React
+  const toPlainText = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+      return String(value);
+    }
+    return '';
+  };
+
   useEffect(() => {
     const fetchEncuestas = async () => {
       setLoading(true);
@@ -98,13 +107,15 @@ function ConsultarEncuesta() {
                     onClick={() => setExpanded(prev => ({ ...prev, [idx]: !prev[idx] }))}
                     title="Mostrar/ocultar detalles"
                   >
-                    {encuesta.encuestaTitulo || encuesta.titulo || encuesta.id}
+                    {toPlainText(encuesta.encuestaTitulo || encuesta.titulo || encuesta.id)}
                   </h3>
                   <button onClick={() => exportarExcelEncuesta(encuesta)} style={{ background: '#03811fff', color: 'white', border: 'none', borderRadius: 6, padding: '8px 14px', fontWeight: 500, cursor: 'pointer', marginLeft: 16 }}>Exportar a Excel</button>
                 </div>
                 {expanded[idx] && (
                   <>
-                    {encuesta.encuestaDescripcion && <p style={{ color: '#555', marginTop: 0 }}>{encuesta.encuestaDescripcion}</p>}
+                    {typeof encuesta.encuestaDescripcion === 'string' || typeof encuesta.encuestaDescripcion === 'number' || typeof encuesta.encuestaDescripcion === 'boolean' ? (
+                      <p style={{ color: '#555', marginTop: 0 }}>{toPlainText(encuesta.encuestaDescripcion)}</p>
+                    ) : null}
                     <div style={{ marginTop: 12 }}>
                       <strong>Preguntas y respuestas:</strong>
                       {Array.isArray(encuesta.preguntas) && encuesta.preguntas.length > 0 && Array.isArray(encuesta.respuestas) && encuesta.respuestas.length > 0 ? (
@@ -123,26 +134,106 @@ function ConsultarEncuesta() {
                             {encuesta.respuestas
                               .map((resp, ridx) => (
                                 <tr key={resp.id || ridx}>
-                                  <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>{encuesta.encuestaTitulo || encuesta.titulo || encuesta.id}</td>
-                                  <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>{resp.usuario}</td>
-                                  <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>{resp.tienda || '-'}</td>
+                                  <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>{toPlainText(encuesta.encuestaTitulo || encuesta.titulo || encuesta.id)}</td>
+                                  <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>{toPlainText(resp.usuario)}</td>
+                                  <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>{toPlainText(resp.tienda || '-')}</td>
                                   <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>
                                     <ul style={{ margin: 0, paddingLeft: 16 }}>
                                       {encuesta.preguntas.map((pregunta, pidx) => (
-                                        <li key={pregunta.id || pidx}>{pregunta.texto || pregunta.pregunta || `Pregunta ${pidx + 1}`}</li>
+                                        <li key={pregunta.id || pidx}>{toPlainText(pregunta.texto || pregunta.pregunta || `Pregunta ${pidx + 1}`)}</li>
                                       ))}
                                     </ul>
                                   </td>
                                   <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>
-                                    <ul style={{ margin: 0, paddingLeft: 16 }}>
-                                      {encuesta.preguntas.map((pregunta, pidx) => (
-                                        <li key={pregunta.id || pidx}>
-                                          {Array.isArray(resp.respuestas?.[pregunta.id])
-                                            ? resp.respuestas[pregunta.id].map((prod, i) => `${i + 1}. ${prod.nombre || prod}`).join(', ')
-                                            : (resp.respuestas?.[pregunta.id] || 'Sin respuesta')}
-                                        </li>
-                                      ))}
-                                    </ul>
+                                    {encuesta.preguntas.map((pregunta, pidx) => {
+                                      const respuesta = resp.respuestas?.[pregunta.id];
+                                      return (
+                                        <div key={pregunta.id || pidx} style={{ marginBottom: 12 }}>
+                                          <div style={{ fontWeight: 500, marginBottom: 4 }}>{toPlainText(pregunta.texto || pregunta.pregunta || `Pregunta ${pidx + 1}`)}</div>
+                                          <div>
+                                            {(() => {
+                                              if (respuesta && typeof respuesta === 'object' && respuesta !== null) {
+                                                // Si productos es array vacío, no renderizar nada
+                                                if (Array.isArray(respuesta.productos)) {
+                                                  if (respuesta.productos.length === 0) return <span>Sin respuesta</span>;
+                                                  return (
+                                                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                                                      {respuesta.productos.map((prod, i) => (
+                                                        (prod && (prod.nombre || prod.precio)) ? (
+                                                          <div key={i} style={{ minWidth: 120, maxWidth: 180, background: '#f7fbff', border: '1px solid #b3d1ea', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
+                                                            {prod.imagenUrl && typeof prod.imagenUrl === 'string' && /^https?:\/\//.test(prod.imagenUrl) && (
+                                                              <img src={prod.imagenUrl} alt={prod.nombre || 'producto'} style={{ width: '100%', maxWidth: 80, maxHeight: 80, objectFit: 'contain', borderRadius: 4, marginBottom: 6, border: '1px solid #ccc' }} />
+                                                            )}
+                                                            <div style={{ fontWeight: 600, fontSize: 15, color: '#212529', textAlign: 'center', wordBreak: 'break-word' }}>{toPlainText(prod.nombre || '')}</div>
+                                                            <div style={{ fontSize: 14, color: '#1976d2', textAlign: 'center', marginTop: 2 }}>{prod.precio ? `$${toPlainText(prod.precio)}` : ''}</div>
+                                                          </div>
+                                                        ) : null
+                                                      ))}
+                                                    </div>
+                                                  );
+                                                }
+                                                // Si es objeto con nombre o precio
+                                                if ((respuesta.nombre || respuesta.precio)) {
+                                                  return (
+                                                    <div style={{ minWidth: 120, maxWidth: 180, background: '#f7fbff', border: '1px solid #b3d1ea', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
+                                                      {respuesta.imagenUrl && typeof respuesta.imagenUrl === 'string' && /^https?:\/\//.test(respuesta.imagenUrl) && (
+                                                        <img src={respuesta.imagenUrl} alt={respuesta.nombre || 'producto'} style={{ width: '100%', maxWidth: 80, maxHeight: 80, objectFit: 'contain', borderRadius: 4, marginBottom: 6, border: '1px solid #ccc' }} />
+                                                      )}
+                                                      <div style={{ fontWeight: 600, fontSize: 15, color: '#212529', textAlign: 'center', wordBreak: 'break-word' }}>{toPlainText(respuesta.nombre || '')}</div>
+                                                      <div style={{ fontSize: 14, color: '#1976d2', textAlign: 'center', marginTop: 2 }}>{respuesta.precio ? `$${toPlainText(respuesta.precio)}` : ''}</div>
+                                                    </div>
+                                                  );
+                                                }
+                                                // Si es objeto vacío o sin datos válidos
+                                                return <span>Sin respuesta</span>;
+                                              }
+                                              if (typeof respuesta === 'string' || typeof respuesta === 'number' || typeof respuesta === 'boolean') {
+                                                return <span>{toPlainText(respuesta)}</span>;
+                                              }
+                                              if (Array.isArray(respuesta)) {
+                                                if (respuesta.length === 0) return <span>Sin respuesta</span>;
+                                                return respuesta.map((item, i) => {
+                                                  if (typeof item === 'object' && item !== null) {
+                                                    if (Array.isArray(item.productos)) {
+                                                      if (item.productos.length === 0) return null;
+                                                      return (
+                                                        <div key={i} style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
+                                                          {item.productos.map((prod, j) => (
+                                                            (prod && (prod.nombre || prod.precio)) ? (
+                                                              <div key={j} style={{ minWidth: 120, maxWidth: 180, background: '#f7fbff', border: '1px solid #b3d1ea', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
+                                                                {prod.imagenUrl && typeof prod.imagenUrl === 'string' && /^https?:\/\//.test(prod.imagenUrl) && (
+                                                                  <img src={prod.imagenUrl} alt={prod.nombre || 'producto'} style={{ width: '100%', maxWidth: 80, maxHeight: 80, objectFit: 'contain', borderRadius: 4, marginBottom: 6, border: '1px solid #ccc' }} />
+                                                                )}
+                                                                <div style={{ fontWeight: 600, fontSize: 15, color: '#212529', textAlign: 'center', wordBreak: 'break-word' }}>{toPlainText(prod.nombre || '')}</div>
+                                                                <div style={{ fontSize: 14, color: '#1976d2', textAlign: 'center', marginTop: 2 }}>{prod.precio ? `$${toPlainText(prod.precio)}` : ''}</div>
+                                                              </div>
+                                                            ) : null
+                                                          ))}
+                                                        </div>
+                                                      );
+                                                    }
+                                                    if (item.nombre || item.precio) {
+                                                      return (
+                                                        <div key={i} style={{ minWidth: 120, maxWidth: 180, background: '#f7fbff', border: '1px solid #b3d1ea', borderRadius: 8, padding: 8, display: 'flex', flexDirection: 'column', alignItems: 'center', boxSizing: 'border-box' }}>
+                                                          {item.imagenUrl && typeof item.imagenUrl === 'string' && /^https?:\/\//.test(item.imagenUrl) && (
+                                                            <img src={item.imagenUrl} alt={item.nombre || 'producto'} style={{ width: '100%', maxWidth: 80, maxHeight: 80, objectFit: 'contain', borderRadius: 4, marginBottom: 6, border: '1px solid #ccc' }} />
+                                                          )}
+                                                          <div style={{ fontWeight: 600, fontSize: 15, color: '#212529', textAlign: 'center', wordBreak: 'break-word' }}>{toPlainText(item.nombre || '')}</div>
+                                                          <div style={{ fontSize: 14, color: '#1976d2', textAlign: 'center', marginTop: 2 }}>{item.precio ? `$${toPlainText(item.precio)}` : ''}</div>
+                                                        </div>
+                                                      );
+                                                    }
+                                                    return null;
+                                                  }
+                                                  return <span key={i}>{toPlainText(`${i + 1}. ${item}`)}</span>;
+                                                });
+                                              }
+                                              return <span>Sin respuesta</span>;
+                                            })()}
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
                                   </td>
                                   <td style={{ border: '1px solid #b3d1ea', padding: 8 }}>{resp.fecha ? new Date(resp.fecha).toLocaleString() : 'Sin fecha'}</td>
                                 </tr>
